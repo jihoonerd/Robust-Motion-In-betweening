@@ -6,6 +6,20 @@ This uses [`LAFAN1`](https://github.com/ubisoft/ubisoft-laforge-animation-datase
 
 ## Setup
 
+1. Clone `LAFAN1` Dataset.
+   Your directory wil look like this:
+   ```
+   .
+  ├── README.md
+  ├── main.py
+  └── ubisoft-laforge-animation-dataset
+   ```
+
+2. Run `evaluate.py` to unzip and validate it.
+   ```bash
+   $ python ubisoft-laforge-animation-dataset/evaluate.py 
+   ```
+
 ## Reference
 
 * LAFAN1
