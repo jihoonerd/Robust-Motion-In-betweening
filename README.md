@@ -10,9 +10,9 @@ This uses [`LAFAN1`](https://github.com/ubisoft/ubisoft-laforge-animation-datase
    Your directory wil look like this:
    ```
    .
-  ├── README.md
-  ├── main.py
-  └── ubisoft-laforge-animation-dataset
+   ├── README.md
+   ├── main.py
+   └── ubisoft-laforge-animation-dataset
    ```
 
 2. Run `evaluate.py` to unzip and validate it.
@@ -20,9 +20,12 @@ This uses [`LAFAN1`](https://github.com/ubisoft/ubisoft-laforge-animation-datase
    $ python ubisoft-laforge-animation-dataset/evaluate.py 
    ```
 
+## Configuration
+If you want to change configuration of processes, modify `config_base.ini` in `/config`.
+
 ## Reference
 
-* LAFAN1
+* LAFAN1 Dataset and its utility codes are used in this repo.
   ```
   @article{harvey2020robust,
   author    = {Félix G. Harvey and Mike Yurick and Derek Nowrouzezahrai and Christopher Pal},
