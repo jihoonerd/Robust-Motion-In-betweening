@@ -1,0 +1,6 @@
+data:
+    data_dir: 'ubisoft-laforge-animation-dataset/output/BVH'
+    
+model:
+    batch_size: 32
+    epochs: 5
