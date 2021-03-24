@@ -1,6 +1,23 @@
 data:
     data_dir: 'ubisoft-laforge-animation-dataset/output/BVH'
-    
+    data_loader_workers: 4
+
+device:
+    gpu_id: 0
+
 model:
-    batch_size: 32
-    epochs: 5
+    batch_size: 128
+    epochs: 1000
+    loss_quat_weight: 1.0
+    loss_root_weight: 1.0
+    loss_pos_weight: 0.5
+    loss_contact_weight: 0.1
+    loss_slide_weight: 0.1
+    loss_adv_weight: 0.01
+    weight_path: 'model_weights/test_weights'
+    learning_rate: 0.001
+    optim_beta1: 0.5
+    optim_beta2: 0.9
+    
+log:
+    weight_save_interval: 5

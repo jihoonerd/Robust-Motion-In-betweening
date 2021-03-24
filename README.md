@@ -20,6 +20,11 @@ This uses [`LAFAN1`](https://github.com/ubisoft/ubisoft-laforge-animation-datase
    $ python ubisoft-laforge-animation-dataset/evaluate.py 
    ```
 
+## To Do
+
+* Data augmentation is not applied yet.
+* Variable TTA (5~50 frames) are currently fixed with 50.
+
 ## Configuration
 If you want to change configuration of processes, modify `config_base.ini` in `/config`.
 
