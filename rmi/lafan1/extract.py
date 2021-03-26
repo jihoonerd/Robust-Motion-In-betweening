@@ -221,12 +221,12 @@ def get_lafan1_set(bvh_path, actors, window=50, offset=20):
     contacts_l = np.asarray(contacts_l)
     contacts_r = np.asarray(contacts_r)
 
-    # Sequences around XZ = 0
-    xzs = np.mean(X[:, :, 0, ::2], axis=1, keepdims=True)
-    X[:, :, 0, 0] = X[:, :, 0, 0] - xzs[..., 0]
-    X[:, :, 0, 2] = X[:, :, 0, 2] - xzs[..., 1]
+    # Sequences around XZ = 0. Y is upside direction
+    xzs = np.mean(X[:, :, 0, ::2], axis=1, keepdims=True)  # Select XZ axis on sequences tand take mean by seqeunce direction.: (Batch, Seq, 2) -> (Batch, 1, 2)
+    X[:, :, 0, 0] = X[:, :, 0, 0] - xzs[..., 0]  # Every root's x position will be aligned to mean. (Batch, Sequence) - (Batch, 1). Middle of the sequence will be around at 0.
+    X[:, :, 0, 2] = X[:, :, 0, 2] - xzs[..., 1]  # Every root's z position will be aligned to mean. (Batch, Sequence) - (Batch, 1). Middle of the sequence will be around at 0.
 
-    # Unify facing on last seed frame
+    # Unify facing on last seed frame (default: 10th frame)
     X, Q = utils.rotate_at_frame(X, Q, anim.parents, n_past=npast)
 
     return X, Q, anim.parents, contacts_l, contacts_r
