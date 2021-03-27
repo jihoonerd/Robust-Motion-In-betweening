@@ -18,7 +18,7 @@ class LAFAN1Dataset(Dataset):
 
         # 4.3: Given the larger size of ... we sample our test windows from Subject 5 at every 40 frames.
         # The training statistics for normalization are computed on windows of 50 frames offset by 20 frames.
-        self.offset = 20 if self.train else 40
+        self.offset = 10 if self.train else 40
 
         # TODO: 3.7.1 Progressive grpowing of transitions. (Curriculum learning strategy)
         self.cur_seq_length = 50
@@ -51,7 +51,10 @@ class LAFAN1Dataset(Dataset):
 
         # Retrieve global representations. (global quaternion, global positions)
         _, global_pos = utils.quat_fk(Q, X, parents)
-    
+
+        # Extract std to scale position (refer to: 3.7.3: we scale all our losses...)
+        self.global_pos_std = torch.Tensor(global_pos.std(axis=(0, 1))).to(self.device)
+
         input_data = {}
         input_data['local_q'] = Q  # q_{t}
         input_data['local_q_offset'] = Q[:,-1,:,:]  # lasst frame's quaternions

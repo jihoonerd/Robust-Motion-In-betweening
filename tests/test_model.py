@@ -11,7 +11,6 @@ def test_plu_activation():
     assert out[0] == 0.1 * (-2 + 1) - 1
     assert out[-1] == 0.1 * (2 - 1) + 1
 
-
 def test_noise_injector():
     input_sample = np.arange(0, 50)
     noise = [noise_injector(i, 50) for i in input_sample]

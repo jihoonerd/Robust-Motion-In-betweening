@@ -3,6 +3,7 @@ settings.json
 log/*
 model_weights/*
 results/*
+PyMO
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

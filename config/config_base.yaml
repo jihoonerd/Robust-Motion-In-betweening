@@ -1,23 +1,30 @@
 data:
     data_dir: 'ubisoft-laforge-animation-dataset/output/BVH'
-    data_loader_workers: 4
+    data_loader_workers: 0
+    skeleton_path: 'ubisoft-laforge-animation-dataset/output/BVH/walk1_subject1.bvh'
 
 device:
     gpu_id: 0
 
 model:
-    batch_size: 128
-    epochs: 1000
+    batch_size: 32
+    epochs: 300
     loss_quat_weight: 1.0
     loss_root_weight: 1.0
     loss_pos_weight: 0.5
     loss_contact_weight: 0.1
-    loss_slide_weight: 0.1
-    loss_adv_weight: 0.01
-    weight_path: 'model_weights/test_weights'
+    loss_discriminator_weight: 0.0001
+    loss_generator_weight: 0.0001
+    target_noise: 0.5
+    saved_weight_path: 'model_weights/test_weights'
+    save_optimizer: False
     learning_rate: 0.001
     optim_beta1: 0.5
     optim_beta2: 0.9
     
 log:
-    weight_save_interval: 5
+    weight_save_interval: 10
+
+test:
+    num_gifs: 30
+    inference_batch_index: 7

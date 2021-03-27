@@ -32,8 +32,8 @@ class LSTMNetwork(nn.Module):
         self.device = device
     
     def init_hidden(self, batch_size):
-        self.h = torch.randn((self.num_layer, batch_size, self.hidden_dim), device=self.device)
-        self.c = torch.randn((self.num_layer, batch_size, self.hidden_dim), device=self.device)
+        self.h = torch.zeros((self.num_layer, batch_size, self.hidden_dim), device=self.device)
+        self.c = torch.zeros((self.num_layer, batch_size, self.hidden_dim), device=self.device)
     
     def forward(self, x):
         x, (self.h, self.c) = self.lstm(x, (self.h, self.c))
@@ -58,9 +58,10 @@ class Decoder(nn.Module):
         x = PLU(x)
         x = self.fc2(x)
         x = PLU(x)
-        o1 = self.fc3(x)
-        o2 = self.sigmoid(self.fc_contact(x))
-        return o1, o2
+        hidden_out = self.fc3(x)
+        contact = self.fc_contact(x)
+        contact_out = self.sigmoid(contact)
+        return hidden_out, contact_out
 
 
 class Discriminator(nn.Module):

@@ -4,12 +4,12 @@ import math
 
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, dimension=256, max_len=50):
+    def __init__(self, dimension=256, max_len=50, device='cpu'):
         super().__init__()
-        pe = torch.zeros(max_len, dimension)
-
-        position = torch.arange(max_len, 0, -1).unsqueeze(1)  # It's time to arrival(TTA), so decrease it from max_len.
-        div_term = torch.exp(torch.arange(0, dimension, 2).float() * (-math.log(10000.0) / dimension))
+        self.device = device
+        pe = torch.zeros(max_len, dimension, device=self.device)
+        position = torch.arange(max_len, 0, -1, device=self.device).unsqueeze(1)  # It's a time to arrival(TTA), so decrease it from max_len.
+        div_term = torch.exp(torch.arange(0, dimension, 2, device=self.device).float() * (-math.log(10000.0) / dimension))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
