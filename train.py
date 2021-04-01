@@ -35,7 +35,7 @@ def train():
     skeleton = TorchSkeleton(skeleton=parsed.skeleton, root_name='Hips', device=device)
 
     # Load and preprocess data. It utilizes LAFAN1 utilities
-    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=False, device=device)
+    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=True, device=device)
     lafan_data_loader = DataLoader(lafan_dataset, batch_size=config['model']['batch_size'], shuffle=True, num_workers=config['data']['data_loader_workers'])
 
     # Extract dimension from processed data
