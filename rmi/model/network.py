@@ -22,7 +22,7 @@ class InputEncoder(nn.Module):
 
 
 class LSTMNetwork(nn.Module):
-    def __init__(self, input_dim=128, hidden_dim=256*3, num_layer=1, device='cpu'):
+    def __init__(self, input_dim=128, hidden_dim=256 * 3, num_layer=1, device="cpu"):
         super().__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
@@ -30,11 +30,15 @@ class LSTMNetwork(nn.Module):
         self.lstm = nn.LSTM(self.input_dim, self.hidden_dim, self.num_layer)
 
         self.device = device
-    
+
     def init_hidden(self, batch_size):
-        self.h = torch.zeros((self.num_layer, batch_size, self.hidden_dim), device=self.device)
-        self.c = torch.zeros((self.num_layer, batch_size, self.hidden_dim), device=self.device)
-    
+        self.h = torch.zeros(
+            (self.num_layer, batch_size, self.hidden_dim), device=self.device
+        )
+        self.c = torch.zeros(
+            (self.num_layer, batch_size, self.hidden_dim), device=self.device
+        )
+
     def forward(self, x):
         x, (self.h, self.c) = self.lstm(x, (self.h, self.c))
         return x
@@ -73,12 +77,16 @@ class Discriminator(nn.Module):
         self.out_dim = out_dim
         self.length = length
 
-        self.fc1 = nn.Conv1d(self.input_dim, self.hidden_dim, kernel_size=self.length, bias=True)
-        self.fc2 = nn.Conv1d(self.hidden_dim, self.hidden_dim // 2, kernel_size=1, bias=True)
-        self.fc3 = nn.Conv1d(self.hidden_dim //2, out_dim, kernel_size=1, bias=True)
+        self.fc1 = nn.Conv1d(
+            self.input_dim, self.hidden_dim, kernel_size=self.length, bias=True
+        )
+        self.fc2 = nn.Conv1d(
+            self.hidden_dim, self.hidden_dim // 2, kernel_size=1, bias=True
+        )
+        self.fc3 = nn.Conv1d(self.hidden_dim // 2, out_dim, kernel_size=1, bias=True)
 
         self.relu = nn.ReLU()
-        
+
     def forward(self, x):
         x = self.fc1(x)
         x = self.relu(x)

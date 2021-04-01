@@ -1,4 +1,4 @@
-# Robust MotionIn-betweening
+# Robust Motion In-betweening
 > PyTorch Implementation of 'Robust Motion In-betweening'
 
 ![image1](assets/gifs/1.gif) ![image2](assets/gifs/2.gif) ![image3](assets/gifs/3.gif) ![image4](assets/gifs/4.gif)
@@ -24,7 +24,7 @@ It implements a paper [*"Robust Motion In-betweening"*](https://arxiv.org/abs/21
    `-- ubisoft-laforge-animation-dataset
    ```
 
-2. Run `evaluate.py` to unzip and validate it. (Install numpy first if you don't have it)
+2. Run `evaluate.py` to unzip and validate it. (Install `numpy` first if you don't have it)
    ```bash
    $ pip install numpy
    $ python ubisoft-laforge-animation-dataset/evaluate.py 

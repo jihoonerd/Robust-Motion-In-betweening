@@ -3,6 +3,6 @@
 import torch
 
 
-def PLU(x, alpha = 0.1, c = 1.0):
+def PLU(x, alpha=0.1, c=1.0):
     out = torch.max(alpha * (x + c) - c, torch.min(alpha * (x - c) + c, x))
     return out

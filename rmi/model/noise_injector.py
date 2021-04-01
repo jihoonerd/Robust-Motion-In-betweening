@@ -1,5 +1,3 @@
-
-
 def noise_injector(time_step: int, length: int):
     tta = length - time_step
     if tta < 5:
