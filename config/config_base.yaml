@@ -4,7 +4,7 @@ data:
     skeleton_path: 'ubisoft-laforge-animation-dataset/output/BVH/walk1_subject1.bvh'
 
 device:
-    gpu_id: 3
+    gpu_id: 0
 
 model:
     batch_size: 128
@@ -27,4 +27,5 @@ log:
 
 test:
     num_gifs: 30
-    inference_batch_index: 7
+    plot: false
+    inference_batch_index: 5

@@ -12,6 +12,7 @@ from pymo.parsers import BVHParser
 from torch.utils.data import DataLoader
 
 from rmi.data.lafan1_dataset import LAFAN1Dataset
+from rmi.data.utils import from_pose_to_json
 from rmi.model.network import Decoder, InputEncoder, LSTMNetwork
 from rmi.model.positional_encoding import PositionalEncoding
 from rmi.vis.pose import plot_pose
@@ -23,7 +24,7 @@ def test():
 
     # Set device to use
     gpu_id = config['device']['gpu_id']
-    device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
 
     # Prepare Directory
     time_stamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -31,6 +32,7 @@ def test():
     result_path = os.path.join('results', time_stamp)
     result_gif_path = os.path.join(result_path, 'gif')
     pathlib.Path(result_gif_path).mkdir(parents=True, exist_ok=True)
+    result_pose_path = os.path.join(result_path, 'pose_json')
 
     # Load Skeleton
     parsed = BVHParser().parse(config['data']['skeleton_path'])
@@ -174,6 +176,15 @@ def test():
                 in_between_true = global_pos[inference_batch_index, t].numpy()
                 target_pose = global_pos[inference_batch_index, -1].numpy()
 
+                pose_path = os.path.join(result_pose_path, f"{i_batch}")
+                pathlib.Path(pose_path).mkdir(parents=True, exist_ok=True)
+
+                if t == 0:
+                    from_pose_to_json(skeleton.joints, start_pose, os.path.join(pose_path, 'start_pose.json'))
+                    from_pose_to_json(skeleton.joints, target_pose, os.path.join(pose_path, 'target_pose.json'))
+
+                from_pose_to_json(skeleton.joints, in_between_pose, os.path.join(pose_path, f'{t}.json'))
+
                 plot_pose(start_pose, in_between_pose, target_pose, t, time_stamp, skeleton, pred=True)
                 plot_pose(start_pose, in_between_true, target_pose, t, time_stamp, skeleton, pred=False)
 
@@ -183,7 +194,6 @@ def test():
                 img_pred.append(pred_img)
                 img_gt.append(gt_img)
                 img_integrated.append(np.concatenate([pred_img, gt_img.resize(pred_img.size)], 1))
-            
             # if i_batch < 49:
             gif_path = os.path.join(result_gif_path, 'img_%02d.gif' % i_batch)
             imageio.mimsave(gif_path, img_integrated, duration=0.1)
