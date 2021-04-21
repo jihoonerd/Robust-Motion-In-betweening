@@ -1,8 +1,9 @@
-import pandas as pd
-
+import json
 
 def from_pose_to_json(joint_names, pose, filename):
-    df = pd.DataFrame(pose)
-    df.index = joint_names
-    df.columns = ['axis1', 'axis2', 'axis3']
-    df.to_json(filename, orient='index')
+    json_out = {}
+    json_out['pose_arr'] = pose.tolist()
+    json_out['joint_names'] = joint_names
+
+    with open(filename, 'w') as outfile:
+        json.dump(json_out, outfile)
