@@ -198,9 +198,9 @@ def test():
                     from_local_q_to_json(skeleton.joints, sampled_batch['local_q'][inference_batch_index][0].numpy(), os.path.join(local_q_path, 'start_q.json'))
                     from_local_q_to_json(skeleton.joints, sampled_batch['local_q'][inference_batch_index][-1].numpy(), os.path.join(local_q_path, 'target_q.json'))
 
-                from_pose_to_json(skeleton.joints, in_between_pose, os.path.join(pose_path, f'{t}.json'))
-                from_root_to_json(root_pred_t, os.path.join(root_path, f'{t}.json'))
-                from_local_q_to_json(skeleton.joints, local_q_pred_t, os.path.join(local_q_path, f'{t}.json'))
+                from_pose_to_json(skeleton.joints, in_between_pose, os.path.join(pose_path, f'{t:05}.json'))
+                from_root_to_json(root_pred_t, os.path.join(root_path, f'{t:05}.json'))
+                from_local_q_to_json(skeleton.joints, local_q_pred_t, os.path.join(local_q_path, f'{t:05}.json'))
 
                 if config['test']['plot']:
                     plot_pose(start_pose, in_between_pose, target_pose, t, time_stamp, skeleton, pred=True)
