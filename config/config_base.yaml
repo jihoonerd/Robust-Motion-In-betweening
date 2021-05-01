@@ -27,5 +27,5 @@ log:
 
 test:
     num_gifs: 30
-    plot: false
+    plot: true
     inference_batch_index: 5

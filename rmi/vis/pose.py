@@ -62,8 +62,13 @@ def plot_pose(
     )
 
     ax.set_xlim(x_min, x_max)
+    ax.set_xlabel("$X$ Axis")
+
     ax.set_ylim(z_min, z_max)
+    ax.set_ylabel("$Y$ Axis")
+
     ax.set_zlim(y_min, y_max)
+    ax.set_zlabel("$Z$ Axis")
 
     plt.draw()
 
