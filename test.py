@@ -12,8 +12,7 @@ from pymo.parsers import BVHParser
 from torch.utils.data import DataLoader
 
 from rmi.data.lafan1_dataset import LAFAN1Dataset
-from rmi.data.utils import (from_local_q_to_json, from_pose_to_json,
-                            from_root_to_json)
+from rmi.data.utils import write_json
 from rmi.model.network import Decoder, InputEncoder, LSTMNetwork
 from rmi.model.positional_encoding import PositionalEncoding
 from rmi.vis.pose import plot_pose
@@ -33,9 +32,7 @@ def test():
     result_path = os.path.join('results', time_stamp)
     result_gif_path = os.path.join(result_path, 'gif')
     pathlib.Path(result_gif_path).mkdir(parents=True, exist_ok=True)
-    result_pose_path = os.path.join(result_path, 'global_pose_json')
-    result_root_path = os.path.join(result_path, 'root_json')
-    result_local_q_path = os.path.join(result_path, 'local_q_json')
+    result_pose_path = os.path.join(result_path, 'pose_json')
 
     # Load Skeleton
     parsed = BVHParser().parse(config['data']['skeleton_path'])
@@ -170,7 +167,7 @@ def test():
                 # FK
                 root_pred = root_pred.squeeze()
                 local_q_pred_ = local_q_pred_.squeeze() # (seq, joint, 4)
-                pos_pred = skeleton.forward_kinematics(root_pred, local_q_pred_, rot_repr='quaternion')
+                pos_pred, rot_pred = skeleton.forward_kinematics(root_pred, local_q_pred_, rot_repr='quaternion')
                 
                 # Exporting
                 root_pred_t = root_pred[inference_batch_index].numpy()
@@ -182,25 +179,13 @@ def test():
                 target_pose = global_pos[inference_batch_index, -1].numpy()
 
                 pose_path = os.path.join(result_pose_path, f"{i_batch}")
-                root_path = os.path.join(result_root_path, f"{i_batch}")
-                local_q_path = os.path.join(result_local_q_path, f"{i_batch}")
                 pathlib.Path(pose_path).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(root_path).mkdir(parents=True, exist_ok=True)
-                pathlib.Path(local_q_path).mkdir(parents=True, exist_ok=True)
 
-                if t == 0:
-                    from_pose_to_json(skeleton.joints, start_pose, os.path.join(pose_path, 'start_pose.json'))
-                    from_pose_to_json(skeleton.joints, target_pose, os.path.join(pose_path, 'target_pose.json'))
+                if t == 0: # root_pose[0] only root check
+                    write_json(filename=os.path.join(pose_path, f'start.json'), local_q=sampled_batch['local_q'][inference_batch_index][0].numpy(), root_pos=start_pose[0], joint_names=skeleton.joints)
+                    write_json(filename=os.path.join(pose_path, f'target.json'), local_q=sampled_batch['local_q'][inference_batch_index][-1].numpy(), root_pos=target_pose[0], joint_names=skeleton.joints)
 
-                    from_root_to_json(start_pose[0], os.path.join(root_path, 'start_root.json'))  # start_pose[0]: root
-                    from_root_to_json(target_pose[0], os.path.join(root_path, 'target_root.json'))
-
-                    from_local_q_to_json(skeleton.joints, sampled_batch['local_q'][inference_batch_index][0].numpy(), os.path.join(local_q_path, 'start_q.json'))
-                    from_local_q_to_json(skeleton.joints, sampled_batch['local_q'][inference_batch_index][-1].numpy(), os.path.join(local_q_path, 'target_q.json'))
-
-                from_pose_to_json(skeleton.joints, in_between_pose, os.path.join(pose_path, f'{t:05}.json'))
-                from_root_to_json(root_pred_t, os.path.join(root_path, f'{t:05}.json'))
-                from_local_q_to_json(skeleton.joints, local_q_pred_t, os.path.join(local_q_path, f'{t:05}.json'))
+                write_json(filename=os.path.join(pose_path, f'{t:05}.json'), local_q=local_q_pred_t, root_pos=root_pred_t, joint_names=skeleton.joints)
 
                 if config['test']['plot']:
                     plot_pose(start_pose, in_between_pose, target_pose, t, time_stamp, skeleton, pred=True)
