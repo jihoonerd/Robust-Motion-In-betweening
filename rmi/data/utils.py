@@ -25,7 +25,7 @@ def flip_bvh(bvh_folder: str):
     to_convert = []
     bvh_files = os.listdir(bvh_folder)
     for bvh_file in bvh_files:
-        if '_flip.bvh' in bvh_file:
+        if '_LRflip.bvh' in bvh_file:
             continue
         flipped_file = bvh_file.replace('.bvh', '_LRflip.bvh')
         if flipped_file in bvh_files:
