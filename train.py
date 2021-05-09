@@ -265,7 +265,7 @@ def train():
             epoch_loss.append(loss_total.item())
             batch_pbar.set_postfix({'LOSS(AVG)': np.mean(epoch_loss).round(3)})
 
-        if epoch % config['log']['weight_save_interval'] == 0:
+        if epoch + 1 % config['log']['weight_save_interval'] == 0:
             weight_epoch = 'trained_weight_' + str(epoch)
             weight_path = os.path.join(model_path, weight_epoch)
             pathlib.Path(weight_path).mkdir(parents=True, exist_ok=True)

@@ -7,7 +7,7 @@ device:
     gpu_id: 0
 
 model:
-    batch_size: 128
+    batch_size: 256
     epochs: 300
     loss_quat_weight: 1.0
     loss_root_weight: 1.0
