@@ -189,7 +189,7 @@ def train():
                 # FK
                 root_pred = root_pred.squeeze()
                 local_q_pred_ = local_q_pred_.squeeze()
-                pos_pred = skeleton.forward_kinematics(root_pred, local_q_pred_, rot_repr='quaternion')
+                pos_pred, _ = skeleton.forward_kinematics(root_pred, local_q_pred_, rot_repr='quaternion')
                 pred_list.append(pos_pred)
 
                 # Loss
