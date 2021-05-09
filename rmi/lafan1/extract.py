@@ -196,7 +196,10 @@ def get_lafan1_set(bvh_path, actors, window=50, offset=20):
 
     for file in bvh_files:
         if file.endswith(".bvh"):
-            seq_name, subject = ntpath.basename(file[:-4]).split("_")
+            file_info = ntpath.basename(file[:-4]).split("_")
+            seq_name = file_info[0]
+            subject = file_info[1]
+            # seq_name, subject = ntpath.basename(file[:-4]).split("_")
 
             if subject in actors:
                 print("Processing file {}".format(file))
