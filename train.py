@@ -98,8 +98,6 @@ def train():
         lstm.train()
         decoder.train()
 
-        epoch_loss = []
-
         batch_pbar = tqdm(lafan_data_loader, position=1, desc="Batch")
         for sampled_batch in batch_pbar:
             loss_pos = 0
@@ -261,9 +259,7 @@ def train():
             torch.nn.utils.clip_grad_norm_(lstm.parameters(), 1.0)
             torch.nn.utils.clip_grad_norm_(decoder.parameters(), 1.0)
             generator_optimizer.step()
-
-            epoch_loss.append(loss_total.item())
-            batch_pbar.set_postfix({'LOSS(AVG)': np.mean(epoch_loss).round(3)})
+            batch_pbar.set_postfix({'LOSS(AVG)': np.round(loss_total.item(), decimals=3)})
 
         if epoch + 1 % config['log']['weight_save_interval'] == 0:
             weight_epoch = 'trained_weight_' + str(epoch + 1)
