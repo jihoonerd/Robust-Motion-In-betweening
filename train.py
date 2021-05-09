@@ -11,6 +11,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from rmi.data.utils import flip_bvh
 from rmi.data.lafan1_dataset import LAFAN1Dataset
 from rmi.model.network import Decoder, Discriminator, InputEncoder, LSTMNetwork
 from rmi.model.noise_injector import noise_injector
@@ -34,7 +35,8 @@ def train():
     parsed = BVHParser().parse(config['data']['skeleton_path']) # Use first bvh info as a reference skeleton.
     skeleton = TorchSkeleton(skeleton=parsed.skeleton, root_name='Hips', device=device)
 
-    # Load and preprocess data. It utilizes LAFAN1 utilities
+    # Flip, Load and preprocess data. It utilizes LAFAN1 utilities
+    flip_bvh(config['data']['data_dir'])
     lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=True, device=device)
     lafan_data_loader = DataLoader(lafan_dataset, batch_size=config['model']['batch_size'], shuffle=True, num_workers=config['data']['data_loader_workers'])
 
