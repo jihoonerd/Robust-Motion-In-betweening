@@ -261,7 +261,7 @@ def train():
             generator_optimizer.step()
             batch_pbar.set_postfix({'LOSS': np.round(loss_total.item(), decimals=3)})
 
-        if epoch + 1 % config['log']['weight_save_interval'] == 0:
+        if (epoch + 1) % config['log']['weight_save_interval'] == 0:
             weight_epoch = 'trained_weight_' + str(epoch + 1)
             weight_path = os.path.join(model_path, weight_epoch)
             pathlib.Path(weight_path).mkdir(parents=True, exist_ok=True)
