@@ -55,6 +55,15 @@ If you want to change configuration of processes, modify `config_base.yaml` in `
 
 ## Reference
 
+* Quaternion processing utility is employed from [Facebook Research's QuaterNet](https://github.com/facebookresearch/QuaterNet).
+  ```
+  @inproceedings{pavllo:quaternet:2018,
+  title={QuaterNet: A Quaternion-based Recurrent Model for Human Motion},
+  author={Pavllo, Dario and Grangier, David and Auli, Michael},
+  booktitle={British Machine Vision Conference (BMVC)},
+  year={2018}}
+  ```
+
 * LAFAN1 Dataset and its utility codes are used in this repo.
   ```
   @article{harvey2020robust,
