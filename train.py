@@ -266,7 +266,7 @@ def train():
             batch_pbar.set_postfix({'LOSS(AVG)': np.mean(epoch_loss).round(3)})
 
         if epoch + 1 % config['log']['weight_save_interval'] == 0:
-            weight_epoch = 'trained_weight_' + str(epoch)
+            weight_epoch = 'trained_weight_' + str(epoch + 1)
             weight_path = os.path.join(model_path, weight_epoch)
             pathlib.Path(weight_path).mkdir(parents=True, exist_ok=True)
             torch.save(state_encoder.state_dict(), weight_path + '/state_encoder.pkl')
