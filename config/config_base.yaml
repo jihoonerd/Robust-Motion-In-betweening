@@ -16,7 +16,6 @@ model:
     loss_discriminator_weight: 0.1
     loss_generator_weight: 0.1
     target_noise: 0.5
-    saved_weight_path: 'model_weights/test_weights_flip'
     save_optimizer: False
     learning_rate: 0.001
     optim_beta1: 0.5
@@ -26,6 +25,7 @@ log:
     weight_save_interval: 5
 
 test:
+    saved_weight_path: 'model_weights/test_weights_flip'
     num_gifs: 30
     plot: false
     inference_batch_index: 25

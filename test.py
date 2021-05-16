@@ -28,7 +28,7 @@ def test():
 
     # Prepare Directory
     time_stamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    saved_weight_path = config['model']['saved_weight_path']
+    saved_weight_path = config['test']['saved_weight_path']
     result_path = os.path.join('results', time_stamp)
     result_gif_path = os.path.join(result_path, 'gif')
     pathlib.Path(result_gif_path).mkdir(parents=True, exist_ok=True)
