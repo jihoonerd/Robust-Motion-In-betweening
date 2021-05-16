@@ -13,8 +13,8 @@ model:
     loss_root_weight: 1.0
     loss_pos_weight: 0.5
     loss_contact_weight: 0.1
-    loss_discriminator_weight: 0.001
-    loss_generator_weight: 0.001
+    loss_discriminator_weight: 0.1
+    loss_generator_weight: 0.1
     target_noise: 0.5
     saved_weight_path: 'model_weights/test_weights_flip'
     save_optimizer: False
