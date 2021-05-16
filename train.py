@@ -60,11 +60,11 @@ def train():
 
     # LSTM
     lstm_in = state_encoder.out_dim * 3
-    lstm = LSTMNetwork(input_dim=lstm_in, hidden_dim=lstm_in*2, device=device)
+    lstm = LSTMNetwork(input_dim=lstm_in, hidden_dim=lstm_in, device=device)
     lstm.to(device)
 
     # Decoder
-    decoder = Decoder(input_dim=lstm_in*2, out_dim=state_in)
+    decoder = Decoder(input_dim=lstm_in, out_dim=state_in)
     decoder.to(device)
 
     discriminator_in = lafan_dataset.num_joints * 3 * 2 # See Appendix
@@ -135,8 +135,9 @@ def train():
             # 3.4: target noise is sampled once per sequence
             target_noise = torch.normal(mean=0, std=config['model']['target_noise'], size=(current_batch_size, 256 * 2), device=device)
 
-            # Generating Frames. It uses fixed 50 frames of generation for now.
-            for t in range(lafan_dataset.cur_seq_length - 1):
+            # Generating Frames
+            training_frames = torch.randint(low=lafan_dataset.start_seq_length, high=lafan_dataset.cur_seq_length + 1, size=(1,))[0]
+            for t in range(training_frames - 1):
                 if t  == 0: # if initial frame
                     root_p_t = root_p[:,t]
                     root_v_t = root_v[:,t]
@@ -171,7 +172,7 @@ def train():
 
                 offset_target = torch.cat([h_offset, h_target], dim=1)
                 # Inject noise by scheduling
-                noise_multiplier = noise_injector(t, length=lafan_dataset.cur_seq_length)  # Noise injection
+                noise_multiplier = noise_injector(t, length=training_frames)  # Noise injection
                 prtbd_offset_target = offset_target + noise_multiplier * target_noise
 
                 # lstm
@@ -205,17 +206,17 @@ def train():
                 # Calculate L1 Norm
                 # 3.7.3: We scale all of our losses to be approximately equal on the LaFAN1 dataset 
                 # for an untrained network before tuning them with custom weights.
-                loss_pos += torch.mean(torch.abs(pos_pred - pos_next)) / lafan_dataset.cur_seq_length
-                loss_root += torch.mean(torch.abs(root_pred - root_p_next)) / lafan_dataset.cur_seq_length
-                loss_quat += torch.mean(torch.abs(local_q_pred[0] - local_q_next)) / lafan_dataset.cur_seq_length
-                loss_contact += torch.mean(torch.abs(contact_pred[0] - contact_next)) / lafan_dataset.cur_seq_length
+                loss_pos += torch.mean(torch.abs(pos_pred - pos_next)) / training_frames
+                loss_root += torch.mean(torch.abs(root_pred - root_p_next)) / training_frames
+                loss_quat += torch.mean(torch.abs(local_q_pred[0] - local_q_next)) / training_frames
+                loss_contact += torch.mean(torch.abs(contact_pred[0] - contact_next)) / training_frames
 
             # Adversarial
             fake_pos_input = torch.cat([x.reshape(current_batch_size, -1).unsqueeze(-1) for x in pred_list], -1)
             fake_v_input = torch.cat([fake_pos_input[:,:,1:] - fake_pos_input[:,:,:-1], torch.zeros_like(fake_pos_input[:,:,0:1], device=device)], -1)
             fake_input = torch.cat([fake_pos_input, fake_v_input], 1)
 
-            real_pos_input = torch.cat([global_pos[:, i].reshape(current_batch_size, -1).unsqueeze(-1) for i in range(lafan_dataset.cur_seq_length)], -1)
+            real_pos_input = torch.cat([global_pos[:, i].reshape(current_batch_size, -1).unsqueeze(-1) for i in range(training_frames)], -1)
             real_v_input = torch.cat([real_pos_input[:,:,1:] - real_pos_input[:,:,:-1], torch.zeros_like(real_pos_input[:,:,0:1], device=device)], -1)
             real_input = torch.cat([real_pos_input, real_v_input], 1)
 
