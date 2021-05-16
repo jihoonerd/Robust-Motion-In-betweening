@@ -37,7 +37,7 @@ def train():
 
     # Flip, Load and preprocess data. It utilizes LAFAN1 utilities
     flip_bvh(config['data']['data_dir'])
-    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=True, device=device)
+    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=True, device=device, cur_seq_length=5, max_transition_length=30)
     lafan_data_loader = DataLoader(lafan_dataset, batch_size=config['model']['batch_size'], shuffle=True, num_workers=config['data']['data_loader_workers'])
 
     # Extract dimension from processed data
@@ -68,12 +68,12 @@ def train():
     decoder.to(device)
 
     discriminator_in = lafan_dataset.num_joints * 3 * 2 # See Appendix
-    short_discriminator = Discriminator(input_dim=discriminator_in, length=3)
+    short_discriminator = Discriminator(input_dim=discriminator_in, length=2)
     short_discriminator.to(device)
-    long_discriminator = Discriminator(input_dim=discriminator_in, length=10)
+    long_discriminator = Discriminator(input_dim=discriminator_in, length=5)
     long_discriminator.to(device)
 
-    pe = PositionalEncoding(dimension=256, max_len=50, device=device)
+    pe = PositionalEncoding(dimension=256, max_len=lafan_dataset.max_transition_length, device=device)
 
     generator_optimizer = Adam(params=list(state_encoder.parameters()) + 
                                       list(offset_encoder.parameters()) + 
@@ -92,6 +92,11 @@ def train():
 
 
     for epoch in tqdm(range(config['model']['epochs']), position=0, desc="Epoch"):
+
+        # Control transition length
+        if lafan_dataset.cur_seq_length < lafan_dataset.max_transition_length:
+            lafan_dataset.cur_seq_length =  np.int32(1/lafan_dataset.increase_rate * epoch + lafan_dataset.start_seq_length)
+
         state_encoder.train()
         offset_encoder.train()
         target_encoder.train()
@@ -200,8 +205,8 @@ def train():
                 # Calculate L1 Norm
                 # 3.7.3: We scale all of our losses to be approximately equal on the LaFAN1 dataset 
                 # for an untrained network before tuning them with custom weights.
-                loss_pos += torch.mean(torch.abs(pos_pred - pos_next) / lafan_dataset.global_pos_std) / lafan_dataset.cur_seq_length
-                loss_root += torch.mean(torch.abs(root_pred - root_p_next) / lafan_dataset.global_pos_std[0]) / lafan_dataset.cur_seq_length
+                loss_pos += torch.mean(torch.abs(pos_pred - pos_next)) / lafan_dataset.cur_seq_length
+                loss_root += torch.mean(torch.abs(root_pred - root_p_next)) / lafan_dataset.cur_seq_length
                 loss_quat += torch.mean(torch.abs(local_q_pred[0] - local_q_next)) / lafan_dataset.cur_seq_length
                 loss_contact += torch.mean(torch.abs(contact_pred[0] - contact_next)) / lafan_dataset.cur_seq_length
 

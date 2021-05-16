@@ -20,6 +20,14 @@ class PositionalEncoding(nn.Module):
         pe = pe.unsqueeze(0)
         self.register_buffer("pe", pe)
 
+        # 3.3 The model sees a constant ztta for 5 frames before it starts to vary.
+        ztta_const_part = self.pe[0][5][:5]
+        self.pe[0][0][:5] = ztta_const_part
+        self.pe[0][1][:5] = ztta_const_part
+        self.pe[0][2][:5] = ztta_const_part
+        self.pe[0][3][:5] = ztta_const_part
+        self.pe[0][4][:5] = ztta_const_part
+
     def forward(self, x, time_step: int):
         x = x + self.pe[:, time_step]
         return x

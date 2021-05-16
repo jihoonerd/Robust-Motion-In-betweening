@@ -39,7 +39,7 @@ def test():
     skeleton = TorchSkeleton(skeleton=parsed.skeleton, root_name='Hips', device=device)
 
      # Load and preprocess data. It utilizes LAFAN1 utilities
-    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=False, device=device)
+    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=False, device=device, cur_seq_length=30, max_transition_length=30)
     lafan_data_loader_test = DataLoader(lafan_dataset_test, batch_size=config['model']['batch_size'], shuffle=False, num_workers=config['data']['data_loader_workers'])
 
     inference_batch_index = config['test']['inference_batch_index']
