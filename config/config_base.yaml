@@ -25,7 +25,8 @@ log:
     weight_save_interval: 5
 
 test:
-    saved_weight_path: 'model_weights/test_weights_flip'
+    saved_weight_path: 'model_weights/weight_p'
     num_gifs: 30
-    plot: false
+    training_frames: 30
+    plot: true
     inference_batch_index: 25

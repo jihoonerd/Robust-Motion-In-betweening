@@ -39,7 +39,7 @@ def test():
     skeleton = TorchSkeleton(skeleton=parsed.skeleton, root_name='Hips', device=device)
 
      # Load and preprocess data. It utilizes LAFAN1 utilities
-    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=False, device=device, cur_seq_length=30, max_transition_length=30)
+    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=False, device=device, cur_seq_length=10, max_transition_length=30)
     lafan_data_loader_test = DataLoader(lafan_dataset_test, batch_size=config['model']['batch_size'], shuffle=False, num_workers=config['data']['data_loader_workers'])
 
     inference_batch_index = config['test']['inference_batch_index']
@@ -67,16 +67,16 @@ def test():
 
     # LSTM
     lstm_in = state_encoder.out_dim * 3
-    lstm = LSTMNetwork(input_dim=lstm_in, hidden_dim=lstm_in*2, device=device)
+    lstm = LSTMNetwork(input_dim=lstm_in, hidden_dim=lstm_in, device=device)
     lstm.to(device)
     lstm.load_state_dict(torch.load(os.path.join(saved_weight_path, 'lstm.pkl'), map_location=device))
 
     # Decoder
-    decoder = Decoder(input_dim=lstm_in*2, out_dim=state_in)
+    decoder = Decoder(input_dim=lstm_in, out_dim=state_in)
     decoder.to(device)
     decoder.load_state_dict(torch.load(os.path.join(saved_weight_path, 'decoder.pkl'), map_location=device))
 
-    pe = PositionalEncoding(dimension=256, max_len=lafan_dataset_test.cur_seq_length)
+    pe = PositionalEncoding(dimension=256, max_len=lafan_dataset_test.max_transition_length, device=device)
 
     print("MODELS LOADED WITH SAVED WEIGHTS")
 
@@ -112,8 +112,9 @@ def test():
 
             lstm.init_hidden(current_batch_size)
 
-            # Generating Frames. It uses fixed 50 frames of generation for now.
-            for t in range(lafan_dataset_test.cur_seq_length - 1): # cur seq length = 50
+            training_frames = config['test']['training_frames']
+            
+            for t in range(training_frames - 1):
                 # root pos
                 if t  == 0:
                     root_p_t = root_p[:,t]
@@ -176,7 +177,7 @@ def test():
                 start_pose = global_pos[inference_batch_index, 0].numpy()
                 in_between_pose = pos_pred[inference_batch_index].numpy()
                 in_between_true = global_pos[inference_batch_index, t].numpy()
-                target_pose = global_pos[inference_batch_index, -1].numpy()
+                target_pose = global_pos[inference_batch_index, training_frames].numpy()
 
                 pose_path = os.path.join(result_pose_path, f"{i_batch}")
                 pathlib.Path(pose_path).mkdir(parents=True, exist_ok=True)
