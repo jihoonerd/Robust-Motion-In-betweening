@@ -1,7 +1,16 @@
 # Robust Motion In-betweening
 > PyTorch Implementation of 'Robust Motion In-betweening'
 
-![image1](assets/gifs/1.gif) ![image2](assets/gifs/2.gif) ![image3](assets/gifs/3.gif) ![image4](assets/gifs/4.gif)
+## Gallery
+
+|||
+|---|---|
+|![image1](assets/gifs/1.gif)|![image2](assets/gifs/2.gif)|
+|![image3](assets/gifs/3.gif)|![image4](assets/gifs/4.gif)|
+|![movie1](assets/gifs/movie_01.gif)|![movie2](assets/gifs/movie_02.gif)|
+|![movie4](assets/gifs/movie_03.gif)|![movie4](assets/gifs/movie_04.gif)|
+|![movie5](assets/gifs/movie_05.gif)|![movie6](assets/gifs/movie_06.gif)|
+
 
 It implements a paper [*"Robust Motion In-betweening"*](https://arxiv.org/abs/2102.04942).
 
