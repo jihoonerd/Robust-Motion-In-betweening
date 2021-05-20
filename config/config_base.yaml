@@ -25,8 +25,8 @@ log:
     weight_save_interval: 5
 
 test:
-    saved_weight_path: 'model_weights/weight_p'
+    saved_weight_path: 'model_weights/curriculum'
     num_gifs: 30
-    training_frames: 30
+    training_frames: 25
     plot: true
     inference_batch_index: 25

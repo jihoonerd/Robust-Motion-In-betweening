@@ -177,7 +177,7 @@ def test():
                 start_pose = global_pos[inference_batch_index, 0].numpy()
                 in_between_pose = pos_pred[inference_batch_index].numpy()
                 in_between_true = global_pos[inference_batch_index, t].numpy()
-                target_pose = global_pos[inference_batch_index, training_frames].numpy()
+                target_pose = global_pos[inference_batch_index, training_frames-2].numpy()
 
                 pose_path = os.path.join(result_pose_path, f"{i_batch}")
                 pathlib.Path(pose_path).mkdir(parents=True, exist_ok=True)
