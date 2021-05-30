@@ -10,7 +10,7 @@ class PositionalEncoding(nn.Module):
         pe = torch.zeros(max_len, dimension, device=self.device)
         position = torch.arange(0, max_len, step=1, device=self.device).unsqueeze(
             1
-        )  # It's a time to arrival(TTA), so decrease it from max_len.
+        )
         div_term = torch.exp(
             torch.arange(0, dimension, 2, device=self.device).float()
             * (-math.log(10000.0) / dimension)
@@ -29,5 +29,5 @@ class PositionalEncoding(nn.Module):
         self.pe[0][max_len - 1] = ztta_const_part
 
     def forward(self, x, tta: int):
-        x = x + self.pe[:, tta]
+        x = x + self.pe[:, tta - 1]
         return x
