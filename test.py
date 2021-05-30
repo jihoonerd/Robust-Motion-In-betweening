@@ -114,7 +114,7 @@ def test():
 
             training_frames = config['test']['training_frames']
             
-            for t in range(training_frames - 1):
+            for t in range(training_frames):
                 # root pos
                 if t  == 0:
                     root_p_t = root_p[:,t]
@@ -144,9 +144,10 @@ def test():
                 h_target = target_encoder(target_input)
                 
                 # Use positional encoding
-                h_state = pe(h_state, t)
-                h_offset = pe(h_offset, t)
-                h_target = pe(h_target, t)
+                tta = training_frames - t
+                h_state = pe(h_state, tta)
+                h_offset = pe(h_offset, tta)
+                h_target = pe(h_target, tta)
 
                 offset_target = torch.cat([h_offset, h_target], dim=1)
 
@@ -177,7 +178,7 @@ def test():
                 start_pose = global_pos[inference_batch_index, 0].numpy()
                 in_between_pose = pos_pred[inference_batch_index].numpy()
                 in_between_true = global_pos[inference_batch_index, t].numpy()
-                target_pose = global_pos[inference_batch_index, training_frames-2].numpy()
+                target_pose = global_pos[inference_batch_index, training_frames-1].numpy()
 
                 pose_path = os.path.join(result_pose_path, f"{i_batch}")
                 pathlib.Path(pose_path).mkdir(parents=True, exist_ok=True)
