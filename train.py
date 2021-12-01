@@ -11,11 +11,13 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from rmi.data.utils import flip_bvh
 from rmi.data.lafan1_dataset import LAFAN1Dataset
+from rmi.data.utils import flip_bvh
 from rmi.model.network import Decoder, Discriminator, InputEncoder, LSTMNetwork
 from rmi.model.noise_injector import noise_injector
 from rmi.model.positional_encoding import PositionalEncoding
+from rmi.model.skeleton import (Skeleton, sk_joints_to_remove, sk_offsets,
+                                sk_parents)
 
 
 def train():
@@ -30,14 +32,16 @@ def train():
     time_stamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_path = os.path.join('model_weights', time_stamp)
     pathlib.Path(model_path).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(config['data']['processed_data_dir']).mkdir(parents=True, exist_ok=True)
     
     # Load Skeleton
-    parsed = BVHParser().parse(config['data']['skeleton_path']) # Use first bvh info as a reference skeleton.
-    skeleton = TorchSkeleton(skeleton=parsed.skeleton, root_name='Hips', device=device)
-
+    skeleton = Skeleton(offsets=sk_offsets, parents=sk_parents, device=device)
+    skeleton.remove_joints(sk_joints_to_remove)
+    
     # Flip, Load and preprocess data. It utilizes LAFAN1 utilities
-    flip_bvh(config['data']['data_dir'])
-    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=True, device=device, cur_seq_length=5, max_transition_length=30)
+    if config['data']['flip_bvh']:
+        flip_bvh(config['data']['data_dir'])
+    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=config['data']['processed_data_dir'], train=True, device=device, start_seq_length=30, cur_seq_length=30, max_transition_length=30)
     lafan_data_loader = DataLoader(lafan_dataset, batch_size=config['model']['batch_size'], shuffle=True, num_workers=config['data']['data_loader_workers'])
 
     # Extract dimension from processed data
@@ -129,6 +133,7 @@ def train():
             global_pos = sampled_batch['global_pos'].to(device)
 
             lstm.init_hidden(current_batch_size)
+            
             pred_list = []
             pred_list.append(global_pos[:,0])
 
@@ -137,6 +142,15 @@ def train():
 
             # Generating Frames
             training_frames = torch.randint(low=lafan_dataset.start_seq_length, high=lafan_dataset.cur_seq_length + 1, size=(1,))[0]
+
+            root_pred_list = []
+            local_q_pred_list = []
+            contact_pred_list = []
+            pos_next_list = []
+            local_q_next_list = []
+            root_p_next_list = []
+            contact_next_list = []
+
             for t in range(training_frames):
                 if t  == 0: # if initial frame
                     root_p_t = root_p[:,t]
@@ -191,33 +205,45 @@ def train():
                 root_v_pred = h_pred[:,:,target_in:]
                 root_pred = root_v_pred + root_p_t
 
-                # FK
-                root_pred = root_pred.squeeze()
-                local_q_pred_ = local_q_pred_.squeeze()
-                pos_pred, _ = skeleton.forward_kinematics(root_pred, local_q_pred_, rot_repr='quaternion')
-                pred_list.append(pos_pred)
+                # root, q, contact prediction
+                root_pred = root_pred.squeeze() # (N, 3)
+                local_q_pred_ = local_q_pred_.squeeze() # (N, 22, 4)
+                root_pred_list.append(root_pred)
+                local_q_pred_list.append(local_q_pred_)
+                contact_pred_list.append(contact_pred.squeeze())
 
-                # Loss
-                pos_next = global_pos[:,t+1]
-                local_q_next = local_q[:,t+1]
-                local_q_next = local_q_next.view(local_q_next.size(0), -1)
-                root_p_next = root_p[:,t+1]
-                contact_next = contact[:,t+1]
+                # For loss
+                pos_next_list.append(global_pos[:, t+1])
+                local_q_next_list.append(local_q[:,t+1].view(local_q.size(0), -1))
+                root_p_next_list.append(root_p[:,t+1])
+                contact_next_list.append(contact[:,t+1])
+            
+            root_pred_stack = torch.stack(root_pred_list, dim=1)
+            local_q_pred_stack = torch.stack(local_q_pred_list, dim=1)
+            contact_pred_stack = torch.stack(contact_pred_list, dim=1)
+            pos_preds, _ = skeleton.forward_kinematics_with_rotation(local_q_pred_stack, root_pred_stack)
 
-                # Calculate L1 Norm
-                # 3.7.3: We scale all of our losses to be approximately equal on the LaFAN1 dataset 
-                # for an untrained network before tuning them with custom weights.
-                loss_pos += torch.mean(torch.abs(pos_pred - pos_next)) / training_frames
-                loss_root += torch.mean(torch.abs(root_pred - root_p_next)) / training_frames
-                loss_quat += torch.mean(torch.abs(local_q_pred[0] - local_q_next)) / training_frames
-                loss_contact += torch.mean(torch.abs(contact_pred[0] - contact_next)) / training_frames
+            pos_next_stack = torch.stack(pos_next_list, dim=1)
+            root_p_next_list = torch.stack(root_p_next_list, dim=1)
+            local_q_next_list = torch.stack(local_q_next_list, dim=1)
+            contact_next_list = torch.stack(contact_next_list, dim=1)
 
+            # Calculate L1 Norm
+            # 3.7.3: We scale all of our losses to be approximately equal on the LaFAN1 dataset 
+            # for an untrained network before tuning them with custom weights.
+            loss_pos = torch.mean(torch.abs(pos_preds - pos_next_stack)) / training_frames
+            loss_root = torch.mean(torch.abs(root_pred_stack - root_p_next_list)) / training_frames
+
+            loss_quat = torch.mean(torch.abs(local_q_pred_stack.reshape(current_batch_size, training_frames, -1) - local_q_next_list)) / training_frames
+            loss_contact = torch.mean(torch.abs(contact_pred_stack - contact_next_list)) / training_frames
+            
             # Adversarial
-            fake_pos_input = torch.cat([x.reshape(current_batch_size, -1).unsqueeze(-1) for x in pred_list], -1)
+            fake_gan_input = torch.cat([global_pos[:,0].reshape(current_batch_size, -1).unsqueeze(1),pos_preds.reshape(current_batch_size, training_frames, -1)], dim=1)
+            fake_pos_input = fake_gan_input[:,:training_frames,:].permute(0,2,1)
             fake_v_input = torch.cat([fake_pos_input[:,:,1:] - fake_pos_input[:,:,:-1], torch.zeros_like(fake_pos_input[:,:,0:1], device=device)], -1)
             fake_input = torch.cat([fake_pos_input, fake_v_input], 1)
 
-            real_pos_input = torch.cat([global_pos[:, i].reshape(current_batch_size, -1).unsqueeze(-1) for i in range(training_frames)], -1)
+            real_pos_input = global_pos[:,:training_frames].reshape(current_batch_size, training_frames, -1).permute(0,2,1)
             real_v_input = torch.cat([real_pos_input[:,:,1:] - real_pos_input[:,:,:-1], torch.zeros_like(real_pos_input[:,:,0:1], device=device)], -1)
             real_input = torch.cat([real_pos_input, real_v_input], 1)
 
@@ -265,6 +291,8 @@ def train():
             torch.nn.utils.clip_grad_norm_(target_encoder.parameters(), 1.0)
             torch.nn.utils.clip_grad_norm_(lstm.parameters(), 1.0)
             torch.nn.utils.clip_grad_norm_(decoder.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(short_discriminator.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(long_discriminator.parameters(), 1.0)
             generator_optimizer.step()
             batch_pbar.set_postfix({'LOSS': np.round(loss_total.item(), decimals=3)})
 

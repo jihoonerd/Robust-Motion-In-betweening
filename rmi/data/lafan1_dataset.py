@@ -2,10 +2,11 @@ from torch.utils.data import Dataset
 from rmi.lafan1 import extract, utils
 import numpy as np
 import torch
-
+import pickle
+import os
 
 class LAFAN1Dataset(Dataset):
-    def __init__(self, lafan_path: str, train: bool, device: str, start_seq_length: int=5, cur_seq_length: int=5, max_transition_length: int=30, increase_rate: int=3):
+    def __init__(self, lafan_path: str, processed_data_dir: str, train: bool, device: str, start_seq_length: int=5, cur_seq_length: int=5, max_transition_length: int=30, increase_rate: int=3):
         self.lafan_path = lafan_path
 
         self.train = train
@@ -30,7 +31,15 @@ class LAFAN1Dataset(Dataset):
 
         self.device = device
 
-        self.data = self.load_lafan()  # Call this last
+        pickle_name = "processed_train_data.pkl" if train else "processed_test_data.pkl"
+
+        if pickle_name in os.listdir(processed_data_dir):
+            with open(os.path.join(processed_data_dir, pickle_name), 'rb') as f:
+                self.data = pickle.load(f)
+        else: 
+            self.data = self.load_lafan()  # Call this last
+            with open(os.path.join(processed_data_dir, pickle_name), 'wb') as f:
+                pickle.dump(self.data, f, pickle.HIGHEST_PROTOCOL)
 
     @property
     def root_v_dim(self):
