@@ -16,6 +16,8 @@ from rmi.data.utils import write_json
 from rmi.model.network import Decoder, InputEncoder, LSTMNetwork
 from rmi.model.positional_encoding import PositionalEncoding
 from rmi.vis.pose import plot_pose
+from rmi.model.skeleton import (Skeleton, sk_joints_to_remove, sk_offsets,
+                                sk_parents, joint_names)
 
 
 def test():
@@ -34,12 +36,14 @@ def test():
     pathlib.Path(result_gif_path).mkdir(parents=True, exist_ok=True)
     result_pose_path = os.path.join(result_path, 'pose_json')
 
+    training_frames = config['test']['training_frames']
+
     # Load Skeleton
-    parsed = BVHParser().parse(config['data']['skeleton_path'])
-    skeleton = TorchSkeleton(skeleton=parsed.skeleton, root_name='Hips', device=device)
+    skeleton = Skeleton(offsets=sk_offsets, parents=sk_parents, device=device)
+    skeleton.remove_joints(sk_joints_to_remove)
 
      # Load and preprocess data. It utilizes LAFAN1 utilities
-    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], train=False, device=device, cur_seq_length=10, max_transition_length=30)
+    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=config['data']['processed_data_dir'], train=False, device=device, start_seq_length=30, cur_seq_length=30, max_transition_length=30)
     lafan_data_loader_test = DataLoader(lafan_dataset_test, batch_size=config['model']['batch_size'], shuffle=False, num_workers=config['data']['data_loader_workers'])
 
     inference_batch_index = config['test']['inference_batch_index']
@@ -93,6 +97,9 @@ def test():
 
         current_batch_size = len(sampled_batch['global_pos'])
 
+        global_pos = sampled_batch['global_pos'].to(device)
+        pose_stack = [global_pos[inference_batch_index, 0+9].numpy()]
+
         with torch.no_grad():
             # state input
             local_q = sampled_batch['local_q'].to(device)
@@ -111,17 +118,15 @@ def test():
             global_pos = sampled_batch['global_pos'].to(device)
 
             lstm.init_hidden(current_batch_size)
-
-            training_frames = config['test']['training_frames']
             
             for t in range(training_frames):
                 # root pos
                 if t  == 0:
-                    root_p_t = root_p[:,t]
-                    root_v_t = root_v[:,t]
-                    local_q_t = local_q[:,t]
+                    root_p_t = root_p[:,t+9]
+                    root_v_t = root_v[:,t+9]
+                    local_q_t = local_q[:,t+9]
                     local_q_t = local_q_t.view(local_q_t.size(0), -1)
-                    contact_t = contact[:,t]
+                    contact_t = contact[:,t+9]
                 else:
                     root_p_t = root_pred  # Be careful about dimension
                     root_v_t = root_v_pred[0]
@@ -169,32 +174,38 @@ def test():
                 # FK
                 root_pred = root_pred.squeeze()
                 local_q_pred_ = local_q_pred_.squeeze() # (seq, joint, 4)
-                pos_pred, rot_pred = skeleton.forward_kinematics(root_pred, local_q_pred_, rot_repr='quaternion')
+                pos_pred, _ = skeleton.forward_kinematics_with_rotation(local_q_pred_.unsqueeze(1), root_pred.unsqueeze(1))
                 
                 # Exporting
                 root_pred_t = root_pred[inference_batch_index].numpy()
                 local_q_pred_t = local_q_pred_[inference_batch_index].numpy()
 
-                start_pose = global_pos[inference_batch_index, 0].numpy()
-                in_between_pose = pos_pred[inference_batch_index].numpy()
-                in_between_true = global_pos[inference_batch_index, t].numpy()
-                target_pose = global_pos[inference_batch_index, training_frames-1].numpy()
+                start_pose = global_pos[inference_batch_index, 0+9].numpy()
+                in_between_pose = pose_stack.pop(0)
+                assert len(pose_stack) == 0
+                pose_stack.append(pos_pred[inference_batch_index, 0].numpy())
+                in_between_true = global_pos[inference_batch_index, t+9].numpy()
+                target_pose = global_pos[inference_batch_index, training_frames-1+9].numpy()
 
                 pose_path = os.path.join(result_pose_path, f"{i_batch}")
                 pathlib.Path(pose_path).mkdir(parents=True, exist_ok=True)
 
                 if t == 0: # root_pose[0] only root check
-                    write_json(filename=os.path.join(pose_path, f'start.json'), local_q=sampled_batch['local_q'][inference_batch_index][0].numpy(), root_pos=start_pose[0], joint_names=skeleton.joints)
-                    write_json(filename=os.path.join(pose_path, f'target.json'), local_q=sampled_batch['local_q'][inference_batch_index][-1].numpy(), root_pos=target_pose[0], joint_names=skeleton.joints)
+                    write_json(filename=os.path.join(pose_path, f'start.json'), local_q=sampled_batch['local_q'][inference_batch_index][0].numpy(), root_pos=start_pose[0], joint_names=joint_names)
+                    write_json(filename=os.path.join(pose_path, f'target.json'), local_q=sampled_batch['local_q'][inference_batch_index][-1].numpy(), root_pos=target_pose[0], joint_names=joint_names)
 
-                write_json(filename=os.path.join(pose_path, f'{t:05}.json'), local_q=local_q_pred_t, root_pos=root_pred_t, joint_names=skeleton.joints)
+                write_json(filename=os.path.join(pose_path, f'{t:05}.json'), local_q=local_q_pred_t, root_pos=root_pred_t, joint_names=joint_names)
 
                 if config['test']['plot']:
-                    plot_pose(start_pose, in_between_pose, target_pose, t, time_stamp, skeleton, pred=True)
-                    plot_pose(start_pose, in_between_true, target_pose, t, time_stamp, skeleton, pred=False)
+                    pred_image_path = os.path.join(result_path, 'pred')
+                    pathlib.Path(pred_image_path).mkdir(parents=True, exist_ok=True)
+                    plot_pose(start_pose, in_between_pose, target_pose, t, skeleton, pred_image_path, prefix='pred_')
+                    gt_image_path = os.path.join(result_path, 'gt')
+                    pathlib.Path(gt_image_path).mkdir(parents=True, exist_ok=True)
+                    plot_pose(start_pose, in_between_true, target_pose, t, skeleton, gt_image_path, prefix='gt_')
 
-                    pred_img = Image.open('results/'+ time_stamp +'/tmp/pred_'+str(t)+'.png', 'r')
-                    gt_img = Image.open('results/'+ time_stamp +'/tmp/gt_'+str(t)+'.png', 'r')
+                    pred_img = Image.open('results/'+ time_stamp +'/pred/pred_'+str(t)+'.png', 'r')
+                    gt_img = Image.open('results/'+ time_stamp +'/gt/gt_'+str(t)+'.png', 'r')
 
                     img_pred.append(pred_img)
                     img_gt.append(gt_img)

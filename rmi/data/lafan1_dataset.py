@@ -57,6 +57,10 @@ class LAFAN1Dataset(Dataset):
     def num_joints(self):
         return self.data["global_pos"].shape[2]
 
+    @property
+    def global_pos_std(self):
+        return torch.Tensor(self.data["global_pos"].std(axis=(0, 1))).to(self.device)
+
     def load_lafan(self):
         # This uses method provided with LAFAN1.
         # X and Q are local position/quaternion. Motions are rotated to make 10th frame facing X+ position.
@@ -68,19 +72,18 @@ class LAFAN1Dataset(Dataset):
         # Retrieve global representations. (global quaternion, global positions)
         _, global_pos = utils.quat_fk(Q, X, parents)
 
-        # Extract std to scale position (refer to: 3.7.3: we scale all our losses...)
-        self.global_pos_std = torch.Tensor(global_pos.std(axis=(0, 1))).to(self.device)
+        target_frame_id = 9 + self.max_transition_length - 1
 
         input_data = {}
         input_data["local_q"] = Q  # q_{t}
-        input_data["local_q_offset"] = Q[:, -1, :, :]  # lasst frame's quaternions
-        input_data["q_target"] = Q[:, -1, :, :]  # q_{T}
+        input_data["local_q_offset"] = Q[:, target_frame_id, :, :]  # last frame's quaternions
+        input_data["q_target"] = Q[:, target_frame_id, :, :]  # q_{T}
 
         input_data["root_v"] = (
             global_pos[:, 1:, 0, :] - global_pos[:, :-1, 0, :]
         )  # \dot{r}_{t}
         input_data["root_p_offset"] = global_pos[
-            :, -1, 0, :
+            :, target_frame_id, 0, :
         ]  # last frame's root positions
         input_data["root_p"] = global_pos[:, :, 0, :]
 
