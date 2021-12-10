@@ -5,8 +5,6 @@ from datetime import datetime
 import numpy as np
 import torch
 import yaml
-from kpt.model.skeleton import TorchSkeleton
-from pymo.parsers import BVHParser
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -29,8 +27,8 @@ def train():
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
 
     # Prepare Directory
-    time_stamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    model_path = os.path.join('model_weights', time_stamp)
+    exp_name = config['data']['exp_name']
+    model_path = os.path.join('model_weights', exp_name)
     pathlib.Path(model_path).mkdir(parents=True, exist_ok=True)
     pathlib.Path(config['data']['processed_data_dir']).mkdir(parents=True, exist_ok=True)
     
@@ -41,7 +39,10 @@ def train():
     # Flip, Load and preprocess data. It utilizes LAFAN1 utilities
     if config['data']['flip_bvh']:
         flip_bvh(config['data']['data_dir'], skip='subject5')
-    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=config['data']['processed_data_dir'], train=True, device=device, start_seq_length=30, cur_seq_length=30, max_transition_length=30)
+
+    training_frames = config['model']['training_frames']
+    lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=config['data']['processed_data_dir'], train=True, 
+                                  device=device, training_frames=training_frames, window=config['model']['window'])
     lafan_data_loader = DataLoader(lafan_dataset, batch_size=config['model']['batch_size'], shuffle=True, num_workers=config['data']['data_loader_workers'])
 
     pos_std = lafan_dataset.global_pos_std
@@ -79,7 +80,7 @@ def train():
     long_discriminator = Discriminator(input_dim=discriminator_in, length=5)
     long_discriminator.to(device)
 
-    pe = PositionalEncoding(dimension=256, max_len=lafan_dataset.max_transition_length, device=device)
+    pe = PositionalEncoding(dimension=256, max_len=training_frames, device=device)
 
     generator_optimizer = Adam(params=list(state_encoder.parameters()) + 
                                       list(offset_encoder.parameters()) + 
@@ -98,10 +99,6 @@ def train():
 
 
     for epoch in tqdm(range(config['model']['epochs']), position=0, desc="Epoch"):
-
-        # Control transition length
-        if lafan_dataset.cur_seq_length < lafan_dataset.max_transition_length:
-            lafan_dataset.cur_seq_length =  np.int32(1/lafan_dataset.increase_rate * epoch + lafan_dataset.start_seq_length)
 
         state_encoder.train()
         offset_encoder.train()
@@ -133,14 +130,12 @@ def train():
             root_p = sampled_batch['root_p'].to(device)
             # global pos
             global_pos = sampled_batch['global_pos'].to(device)
+            global_rot = sampled_batch['global_rot'].to(device)
 
             lstm.init_hidden(current_batch_size)
 
             # 3.4: target noise is sampled once per sequence
             target_noise = torch.normal(mean=0, std=config['model']['target_noise'], size=(current_batch_size, 256 * 2), device=device)
-
-            # Generating Frames
-            training_frames = torch.randint(low=lafan_dataset.start_seq_length, high=lafan_dataset.cur_seq_length + 1, size=(1,))[0]
 
             root_pred_list = []
             local_q_pred_list = []
@@ -149,15 +144,16 @@ def train():
             local_q_next_list = []
             root_p_next_list = []
             contact_next_list = []
+            global_q_next_list = []
 
             for t in range(training_frames):
 
-                if t  == 0: # if initial frame
-                    root_p_t = root_p[:,t+9]
-                    root_v_t = root_v[:,t+9]
-                    local_q_t = local_q[:,t+9]
+                if t == 0: # if initial frame
+                    root_p_t = root_p[:,t+10]
+                    root_v_t = root_v[:,t+10]
+                    local_q_t = local_q[:,t+10]
                     local_q_t = local_q_t.view(local_q_t.size(0), -1)
-                    contact_t = contact[:,t+9]
+                    contact_t = contact[:,t+10]
                 else:
                     root_p_t = root_pred  # Be careful about dimension
                     root_v_t = root_v_pred[0]
@@ -213,37 +209,39 @@ def train():
                 contact_pred_list.append(contact_pred.squeeze())
 
                 # For loss
-                pos_next_list.append(global_pos[:, t+1+9])
-                local_q_next_list.append(local_q[:,t+1+9].view(local_q.size(0), -1))
-                root_p_next_list.append(root_p[:,t+1+9])
-                contact_next_list.append(contact[:,t+1+9])
+                pos_next_list.append(global_pos[:, t+1+10])
+                global_q_next_list.append(global_rot[:, t+1+10])
+                local_q_next_list.append(local_q[:,t+1+10].view(local_q.size(0), -1))
+                root_p_next_list.append(root_p[:,t+1+10])
+                contact_next_list.append(contact[:,t+1+10])
             
             root_pred_stack = torch.stack(root_pred_list, dim=1)
             local_q_pred_stack = torch.stack(local_q_pred_list, dim=1)
             contact_pred_stack = torch.stack(contact_pred_list, dim=1)
-            pos_preds, _ = skeleton.forward_kinematics_with_rotation(local_q_pred_stack, root_pred_stack)
+            pos_preds, pos_rot = skeleton.forward_kinematics_with_rotation(local_q_pred_stack, root_pred_stack)
 
             pos_next_stack = torch.stack(pos_next_list, dim=1)
             root_p_next_list = torch.stack(root_p_next_list, dim=1)
             local_q_next_list = torch.stack(local_q_next_list, dim=1)
             contact_next_list = torch.stack(contact_next_list, dim=1)
+            rot_next_stack = torch.stack(global_q_next_list, dim=1)
 
             # Calculate L1 Norm
             # 3.7.3: We scale all of our losses to be approximately equal on the LaFAN1 dataset 
             # for an untrained network before tuning them with custom weights.
             loss_pos = torch.mean(torch.sum(torch.abs(pos_preds - pos_next_stack), dim=1) / pos_std) / training_frames
             loss_root = torch.mean(torch.sum(torch.abs(root_pred_stack - root_p_next_list), dim=1) / pos_std[0]) / training_frames
-
+            loss_global_quat = torch.norm((pos_rot - rot_next_stack), dim=(2,3)).mean()
             loss_quat = torch.mean(torch.sum(torch.abs(local_q_pred_stack - local_q_next_list.reshape(current_batch_size, training_frames, lafan_dataset.num_joints, -1)), dim=1)) / training_frames
             loss_contact = torch.mean(torch.sum(torch.abs(contact_pred_stack - contact_next_list), dim=1)) / training_frames
             
             # Adversarial
-            fake_gan_input = torch.cat([global_pos[:,0+10].reshape(current_batch_size, -1).unsqueeze(1),pos_preds.reshape(current_batch_size, training_frames, -1)], dim=1)
-            fake_pos_input = fake_gan_input[:,:training_frames,:].permute(0,2,1)
+            fake_gan_input = torch.cat([global_pos[:,0+10].reshape(current_batch_size, -1).unsqueeze(1), pos_preds.reshape(current_batch_size, training_frames, -1)], dim=1)
+            fake_pos_input = fake_gan_input[:,:training_frames+1,:].permute(0,2,1)
             fake_v_input = torch.cat([fake_pos_input[:,:,1:] - fake_pos_input[:,:,:-1], torch.zeros_like(fake_pos_input[:,:,0:1], device=device)], -1)
             fake_input = torch.cat([fake_pos_input, fake_v_input], 1)
 
-            real_pos_input = global_pos[:,10:training_frames+10].reshape(current_batch_size, training_frames, -1).permute(0,2,1)
+            real_pos_input = global_pos[:,10:training_frames+11].reshape(current_batch_size, training_frames+1, -1).permute(0,2,1)
             real_v_input = torch.cat([real_pos_input[:,:,1:] - real_pos_input[:,:,:-1], torch.zeros_like(real_pos_input[:,:,0:1], device=device)], -1)
             real_input = torch.cat([real_pos_input, real_v_input], 1)
 
@@ -271,6 +269,7 @@ def train():
 
             loss_total = config['model']['loss_pos_weight'] * loss_pos + \
                          config['model']['loss_quat_weight'] * loss_quat + \
+                         config['model']['loss_global_quat'] * loss_global_quat + \
                          config['model']['loss_root_weight'] * loss_root + \
                          config['model']['loss_contact_weight'] * loss_contact
             

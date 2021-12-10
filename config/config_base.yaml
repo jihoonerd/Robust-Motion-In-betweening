@@ -2,8 +2,9 @@ data:
     data_dir: 'ubisoft-laforge-animation-dataset/output/BVH'
     data_loader_workers: 0
     skeleton_path: 'ubisoft-laforge-animation-dataset/output/BVH/walk1_subject1.bvh'
-    processed_data_dir: 'processed_data_original'
+    processed_data_dir: 'processed_data_original_120'
     flip_bvh: true
+    exp_name: 'frames-120-4'
 
 device:
     gpu_id: 0
@@ -11,23 +12,28 @@ device:
 model:
     batch_size: 128
     epochs: 300
-    loss_quat_weight: 1.0
+    loss_quat_weight: 1.25
     loss_root_weight: 1.0
     loss_pos_weight: 0.75
-    loss_contact_weight: 0.1
-    loss_discriminator_weight: 0.0001
-    loss_generator_weight: 0.0001
+    loss_contact_weight: 0.05
+    loss_global_quat: 0.05
+    loss_discriminator_weight: 0.001
+    loss_generator_weight: 0.00001
     target_noise: 0.5
     save_optimizer: False
     learning_rate: 0.001
     optim_beta1: 0.5
     optim_beta2: 0.9
+    training_frames: 120
+    window: 131 # +11
     
 log:
     weight_save_interval: 10
 
 test:
-    saved_weight_path: 'model_weights/2021-12-02_01-13-05/trained_weight_300'
-    training_frames: 30
+    saved_weight_path: 'model_weights/frames-40-4/trained_weight_150'
+    processed_data_dir: 'processed_data_original_40'
+    test_frames: 40
+    test_window: 51
     plot: true
     inference_batch_index: 25

@@ -36,14 +36,16 @@ def test():
     pathlib.Path(result_gif_path).mkdir(parents=True, exist_ok=True)
     result_pose_path = os.path.join(result_path, 'pose_json')
 
-    training_frames = config['test']['training_frames']
+    # training_frames = config['model']['training_frames']
+    training_frames = config['test']['test_frames']
+    window = 51
 
     # Load Skeleton
     skeleton = Skeleton(offsets=sk_offsets, parents=sk_parents, device=device)
     skeleton.remove_joints(sk_joints_to_remove)
 
-     # Load and preprocess data. It utilizes LAFAN1 utilities
-    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=config['data']['processed_data_dir'], train=False, device=device, start_seq_length=30, cur_seq_length=30, max_transition_length=30)
+    # Load and preprocess data. It utilizes LAFAN1 utilities
+    lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=config['test']['processed_data_dir'], train=False, device=device, window=window, training_frames=training_frames)
     lafan_data_loader_test = DataLoader(lafan_dataset_test, batch_size=config['model']['batch_size'], shuffle=False, num_workers=config['data']['data_loader_workers'])
 
     inference_batch_index = config['test']['inference_batch_index']
@@ -80,7 +82,7 @@ def test():
     decoder.to(device)
     decoder.load_state_dict(torch.load(os.path.join(saved_weight_path, 'decoder.pkl'), map_location=device))
 
-    pe = PositionalEncoding(dimension=256, max_len=lafan_dataset_test.max_transition_length, device=device)
+    pe = PositionalEncoding(dimension=256, max_len=training_frames, device=device)
 
     print("MODELS LOADED WITH SAVED WEIGHTS")
 

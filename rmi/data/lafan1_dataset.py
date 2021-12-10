@@ -6,7 +6,7 @@ import pickle
 import os
 
 class LAFAN1Dataset(Dataset):
-    def __init__(self, lafan_path: str, processed_data_dir: str, train: bool, device: str, start_seq_length: int=5, cur_seq_length: int=5, max_transition_length: int=30, increase_rate: int=3):
+    def __init__(self, lafan_path: str, processed_data_dir: str, train: bool, device: str, window=50, training_frames=30):
         self.lafan_path = lafan_path
 
         self.train = train
@@ -17,17 +17,12 @@ class LAFAN1Dataset(Dataset):
         )
 
         # 4.3: ... The training statistics for normalization are computed on windows of 50 frames offset by 20 frames.
-        self.window = 50
+        self.window = window
 
         # 4.3: Given the larger size of ... we sample our test windows from Subject 5 at every 40 frames.
         # The training statistics for normalization are computed on windows of 50 frames offset by 20 frames.
         self.offset = 20 if self.train else 40
-
-        # 4.3 Table 3: Trained with transition lengths of maximum 30 frames and are evaluated on 5, 15, 30, 45 frames
-        self.start_seq_length = start_seq_length
-        self.cur_seq_length = cur_seq_length
-        self.increase_rate = increase_rate
-        self.max_transition_length = max_transition_length
+        self.training_frames = training_frames
 
         self.device = device
 
@@ -40,6 +35,10 @@ class LAFAN1Dataset(Dataset):
             self.data = self.load_lafan()  # Call this last
             with open(os.path.join(processed_data_dir, pickle_name), 'wb') as f:
                 pickle.dump(self.data, f, pickle.HIGHEST_PROTOCOL)
+
+    @property
+    def parents(self):
+        return self.data["parents"]
 
     @property
     def root_v_dim(self):
@@ -66,19 +65,22 @@ class LAFAN1Dataset(Dataset):
         # X and Q are local position/quaternion. Motions are rotated to make 10th frame facing X+ position.
         # Refer to paper 3.1 Data formatting
         X, Q, parents, contacts_l, contacts_r = extract.get_lafan1_set(
-            self.lafan_path, self.actors, self.window, self.offset
+            self.lafan_path, self.actors, self.window, self.offset,
         )
 
         # Retrieve global representations. (global quaternion, global positions)
-        _, global_pos = utils.quat_fk(Q, X, parents)
+        global_rot, global_pos = utils.quat_fk(Q, X, parents)
 
-        target_frame_id = 9 + self.max_transition_length - 1
+        target_frame_id = 10 + self.training_frames - 1
 
         input_data = {}
+        input_data["parents"] = parents
+        input_data["X"] = X
+        input_data["Q"] = Q
         input_data["local_q"] = Q  # q_{t}
         input_data["local_q_offset"] = Q[:, target_frame_id, :, :]  # last frame's quaternions
         input_data["q_target"] = Q[:, target_frame_id, :, :]  # q_{T}
-
+        input_data["global_rot"] = global_rot
         input_data["root_v"] = (
             global_pos[:, 1:, 0, :] - global_pos[:, :-1, 0, :]
         )  # \dot{r}_{t}
@@ -100,6 +102,7 @@ class LAFAN1Dataset(Dataset):
 
     def __getitem__(self, index):
         query = {}
+        query["X"] = self.data["X"][index].astype(np.float32)
         query["local_q"] = self.data["local_q"][index].astype(np.float32)
         query["local_q_offset"] = self.data["local_q_offset"][index].astype(np.float32)
         query["q_target"] = self.data["q_target"][index].astype(np.float32)
@@ -108,4 +111,5 @@ class LAFAN1Dataset(Dataset):
         query["root_p"] = self.data["root_p"][index].astype(np.float32)
         query["contact"] = self.data["contact"][index].astype(np.float32)
         query["global_pos"] = self.data["global_pos"][index].astype(np.float32)
+        query["global_rot"] = self.data["global_rot"][index].astype(np.float32)
         return query
