@@ -12,23 +12,29 @@ from rmi.data.lafan1_dataset import LAFAN1Dataset
 from rmi.lafan1 import benchmarks, extract, utils
 from rmi.model.network import Decoder, InputEncoder, LSTMNetwork
 from rmi.model.positional_encoding import PositionalEncoding
-from rmi.model.skeleton import (Skeleton, joint_names, sk_joints_to_remove,
+from rmi.model.skeleton import (Skeleton, amass_offsets, sk_joints_to_remove,
                                 sk_offsets, sk_parents)
+
+
+# Load configuration from yaml
+config = yaml.safe_load(open('./config/config_base.yaml', 'r').read())
 
 
 # STATS
 # the train/test set actors as in the paper
-train_actors = ['subject1', 'subject2', 'subject3', 'subject4']
-test_actors = ['subject5']
 
-out_path = 'benchmark'
-print('Unzipping the data...\n')
-lafan_data = os.path.join('ubisoft-laforge-animation-dataset', 'lafan1', 'lafan1.zip')
-bvh_folder = os.path.join(out_path, 'BVH')
-with zipfile.ZipFile(lafan_data, "r") as zip_ref:
-    if not os.path.exists(bvh_folder):
-        os.makedirs(bvh_folder, exist_ok=True)
-    zip_ref.extractall(bvh_folder)
+# Extract stats
+if config['data']['dataset'] == 'LAFAN':
+    train_actors = ["subject1", "subject2", "subject3", "subject4"]
+elif config['data']['dataset'] in ['HumanEva', 'PosePrior']:
+    train_actors = ["subject1", "subject2"]
+elif config['data']['dataset'] in ['HUMAN4D']:
+    train_actors = ["subject1", "subject2", "subject3", "subject4", "subject5", "subject6", "subject7"]
+else:
+    ValueError("Invalid Dataset")
+
+out_path = config['test']['processed_data_dir']
+bvh_folder = config['test']['data_dir']
 
 print('Retrieving statistics...')
 stats_file = os.path.join(out_path, 'train_stats.pkl')
@@ -48,10 +54,6 @@ else:
     x_std = stats['x_std']
     offsets = stats['offsets']
 
-
-# Load configuration from yaml
-config = yaml.safe_load(open('./config/config_base.yaml', 'r').read())
-
 # Set device to use
 gpu_id = config['device']['gpu_id']
 device = torch.device("cpu")
@@ -68,14 +70,14 @@ training_frames = config['test']['test_frames']
 print("Predicting Frames: ", training_frames)
 
 # Load Skeleton
-skeleton = Skeleton(offsets=sk_offsets, parents=sk_parents, device=device)
+offset = sk_offsets if config['data']['dataset'] == 'LAFAN' else amass_offsets
+skeleton = Skeleton(offsets=offset, parents=sk_parents, device=device)
 skeleton.remove_joints(sk_joints_to_remove)
 
 # Load and preprocess data. It utilizes LAFAN1 utilities
-
 processed_data_dir= config['test']['processed_data_dir']
 pathlib.Path(processed_data_dir).mkdir(parents=True, exist_ok=True)
-lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=processed_data_dir, train=False, device=device, window=90, training_frames=training_frames)
+lafan_dataset_test = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=processed_data_dir, train=False, device=device, window=config['test']['test_window'], dataset=config['data']['dataset'])
 lafan_data_loader_test = DataLoader(lafan_dataset_test, batch_size=len(lafan_dataset_test), shuffle=False, num_workers=config['data']['data_loader_workers'])
 
 # Extract dimension from processed data
@@ -157,16 +159,16 @@ for i_batch, sampled_batch in enumerate(lafan_data_loader_test):
         for t in range(training_frames):
             # root pos
             if t  == 0:
-                root_p_t = root_p[:,t+9]
-                root_v_t = root_v[:,t+9]
-                local_q_t = local_q[:,t+9]
+                root_p_t = root_p[:,t+10]
+                root_v_t = root_v[:,t+10]
+                local_q_t = local_q[:,t+10]
                 local_q_t = local_q_t.view(local_q_t.size(0), -1)
-                contact_t = contact[:,t+9]
+                contact_t = contact[:,t+10]
             else:
                 root_p_t = root_pred  # Be careful about dimension
                 root_v_t = root_v_pred[0]
                 local_q_t = local_q_pred[0]
-                contact_t = contact_pred[0]
+                contact_t = contact_pred
                 
             assert root_p_offset.shape == root_p_t.shape
 
@@ -206,12 +208,25 @@ for i_batch, sampled_batch in enumerate(lafan_data_loader_test):
             root_v_pred = h_pred[:,:,target_in:]
             root_pred = root_v_pred + root_p_t
 
-            root_pred = root_pred.squeeze() # (N, 3)
-            local_q_pred_ = local_q_pred_.squeeze() # (N, 22, 4)
+            # root, q, contact prediction
+            if root_pred.size(1) == 1:
+                root_pred = root_pred[0]
+            else:
+                root_pred = root_pred.squeeze()
+
+            if local_q_pred_.size(1) == 1:
+                local_q_pred_ = local_q_pred_[0]
+            else:                
+                local_q_pred_ = local_q_pred_.squeeze() # (N, 22, 4)
 
             root_pred_list.append(root_pred)
             local_q_pred_list.append(local_q_pred_)
-            contact_pred_list.append(contact_pred.squeeze())
+            
+            if contact_pred.size(1) == 1:
+                contact_pred = contact_pred[0]
+            else:
+                contact_pred = contact_pred.squeeze()
+            contact_pred_list.append(contact_pred)
 
             # For loss
             pos_next_list.append(global_pos[:, t+1+9])

@@ -1,10 +1,10 @@
 data:
-    data_dir: 'AMASS/HUMAN4D'
+    data_dir: 'AMASS/HumanEva'
     data_loader_workers: 0
-    processed_data_dir: 'processed_data_h4d_40'
+    processed_data_dir: 'processed_data_humaneva_40'
     flip_bvh: false
-    dataset: 'HUMAN4D'
-    exp_name: 'H4D_40'
+    dataset: 'HumanEva'
+    exp_name: 'HumanEva_40'
 
 device:
     gpu_id: 0
@@ -31,9 +31,10 @@ log:
     weight_save_interval: 25
 
 test:
-    saved_weight_path: 'model_weights/frames-40-4/trained_weight_150'
-    processed_data_dir: 'processed_data_original_40'
-    test_frames: 40
-    test_window: 51
-    plot: true
+    data_dir: 'AMASS/HumanEva'
+    saved_weight_path: 'model_weights/HumanEva_80/trained_weight_200'
+    processed_data_dir: 'processed_data_humaneva_80'
+    test_frames: 80
+    test_window: 90
+    plot: false
     inference_batch_index: 25
