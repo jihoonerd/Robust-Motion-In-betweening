@@ -1,6 +1,5 @@
 import os
 import pathlib
-from datetime import datetime
 
 import numpy as np
 import torch
@@ -14,9 +13,9 @@ from rmi.data.utils import flip_bvh
 from rmi.model.network import Decoder, Discriminator, InputEncoder, LSTMNetwork
 from rmi.model.noise_injector import noise_injector
 from rmi.model.positional_encoding import PositionalEncoding
-from rmi.model.skeleton import (Skeleton, sk_joints_to_remove, sk_offsets,
-                                sk_parents)
-
+from rmi.model.skeleton import (Skeleton, amass_offsets, sk_joints_to_remove,
+                                sk_offsets, sk_parents)
+import shutil
 
 def train():
     # Load configuration from yaml
@@ -30,10 +29,12 @@ def train():
     exp_name = config['data']['exp_name']
     model_path = os.path.join('model_weights', exp_name)
     pathlib.Path(model_path).mkdir(parents=True, exist_ok=True)
+    shutil.copy(src='config/config_base.yaml', dst=model_path+'/config.yaml')
     pathlib.Path(config['data']['processed_data_dir']).mkdir(parents=True, exist_ok=True)
     
     # Load Skeleton
-    skeleton = Skeleton(offsets=sk_offsets, parents=sk_parents, device=device)
+    offset = sk_offsets if config['data']['dataset'] == 'LAFAN' else amass_offsets
+    skeleton = Skeleton(offsets=offset, parents=sk_parents, device=device)
     skeleton.remove_joints(sk_joints_to_remove)
     
     # Flip, Load and preprocess data. It utilizes LAFAN1 utilities
@@ -42,7 +43,7 @@ def train():
 
     training_frames = config['model']['training_frames']
     lafan_dataset = LAFAN1Dataset(lafan_path=config['data']['data_dir'], processed_data_dir=config['data']['processed_data_dir'], train=True, 
-                                  device=device, training_frames=training_frames, window=config['model']['window'])
+                                  device=device, window=config['model']['window'], dataset=config['data']['dataset'])
     lafan_data_loader = DataLoader(lafan_dataset, batch_size=config['model']['batch_size'], shuffle=True, num_workers=config['data']['data_loader_workers'])
 
     pos_std = lafan_dataset.global_pos_std
@@ -158,7 +159,7 @@ def train():
                     root_p_t = root_pred  # Be careful about dimension
                     root_v_t = root_v_pred[0]
                     local_q_t = local_q_pred[0]
-                    contact_t = contact_pred[0]
+                    contact_t = contact_pred
 
                 assert root_p_offset.shape == root_p_t.shape
 
@@ -202,11 +203,24 @@ def train():
                 root_pred = root_v_pred + root_p_t
 
                 # root, q, contact prediction
-                root_pred = root_pred.squeeze() # (N, 3)
-                local_q_pred_ = local_q_pred_.squeeze() # (N, 22, 4)
+                if root_pred.size(1) == 1:
+                    root_pred = root_pred[0]
+                else:
+                    root_pred = root_pred.squeeze()
+                if local_q_pred_.size(1) == 1:
+                    local_q_pred_ = local_q_pred_[0]
+                else:                
+                    local_q_pred_ = local_q_pred_.squeeze() # (N, 22, 4)
+
+                
                 root_pred_list.append(root_pred)
                 local_q_pred_list.append(local_q_pred_)
-                contact_pred_list.append(contact_pred.squeeze())
+
+                if contact_pred.size(1) == 1:
+                    contact_pred = contact_pred[0]
+                else:
+                    contact_pred = contact_pred.squeeze()
+                contact_pred_list.append(contact_pred)
 
                 # For loss
                 pos_next_list.append(global_pos[:, t+1+10])

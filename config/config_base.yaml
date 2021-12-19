@@ -1,22 +1,22 @@
 data:
-    data_dir: 'ubisoft-laforge-animation-dataset/output/BVH'
+    data_dir: 'AMASS/HUMAN4D'
     data_loader_workers: 0
-    skeleton_path: 'ubisoft-laforge-animation-dataset/output/BVH/walk1_subject1.bvh'
-    processed_data_dir: 'processed_data_original_120'
-    flip_bvh: true
-    exp_name: 'frames-120-4'
+    processed_data_dir: 'processed_data_h4d_40'
+    flip_bvh: false
+    dataset: 'HUMAN4D'
+    exp_name: 'H4D_40'
 
 device:
     gpu_id: 0
 
 model:
-    batch_size: 128
-    epochs: 300
-    loss_quat_weight: 1.25
+    batch_size: 32
+    epochs: 500
+    loss_quat_weight: 1.20
     loss_root_weight: 1.0
     loss_pos_weight: 0.75
     loss_contact_weight: 0.05
-    loss_global_quat: 0.05
+    loss_global_quat: 0.02
     loss_discriminator_weight: 0.001
     loss_generator_weight: 0.00001
     target_noise: 0.5
@@ -24,11 +24,11 @@ model:
     learning_rate: 0.001
     optim_beta1: 0.5
     optim_beta2: 0.9
-    training_frames: 120
-    window: 131 # +11
+    training_frames: 40
+    window: 51 # +11
     
 log:
-    weight_save_interval: 10
+    weight_save_interval: 25
 
 test:
     saved_weight_path: 'model_weights/frames-40-4/trained_weight_150'

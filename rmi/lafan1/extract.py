@@ -168,7 +168,7 @@ def read_bvh(filename, start=None, end=None, order=None):
     return Anim(rotations, positions, offsets, parents, names)
 
 
-def get_lafan1_set(bvh_path, actors, window=50, offset=20):
+def get_lafan1_set(bvh_path, actors, window=50, offset=20, train=True, stats=False, datset='LAFAN'):
     """
     Extract the same test set as in the article, given the location of the BVH files.
 
@@ -192,15 +192,21 @@ def get_lafan1_set(bvh_path, actors, window=50, offset=20):
     contacts_r = []
 
     # Extract
-    bvh_files = os.listdir(bvh_path)
+    bvh_files = sorted(os.listdir(bvh_path))
 
     for file in bvh_files:
         if file.endswith(".bvh"):
             file_info = ntpath.basename(file[:-4]).split("_")
             seq_name = file_info[0]
             subject = file_info[1]
-            # seq_name, subject = ntpath.basename(file[:-4]).split("_")
 
+            if (not train) and (file_info[-1] == "LRflip"):
+                continue
+
+            if stats and (file_info[-1] == "LRflip"):
+                continue
+
+            # seq_name, subject = ntpath.basename(file[:-4]).split("_")
             if subject in actors:
                 print("Processing file {}".format(file))
                 seq_path = os.path.join(bvh_path, file)
@@ -232,21 +238,15 @@ def get_lafan1_set(bvh_path, actors, window=50, offset=20):
     contacts_l = np.asarray(contacts_l)
     contacts_r = np.asarray(contacts_r)
 
-    # Sequences around XZ = 0. Y is upside direction
-    xzs = np.mean(
-        X[:, :, 0, ::2], axis=1, keepdims=True
-    )  # Select XZ axis on sequences tand take mean by seqeunce direction.: (Batch, Seq, 2) -> (Batch, 1, 2)
-    X[:, :, 0, 0] = (
-        X[:, :, 0, 0] - xzs[..., 0]
-    )  # Every root's x position will be aligned to mean. (Batch, Sequence) - (Batch, 1). Middle of the sequence will be around at 0.
-    X[:, :, 0, 2] = (
-        X[:, :, 0, 2] - xzs[..., 1]
-    )  # Every root's z position will be aligned to mean. (Batch, Sequence) - (Batch, 1). Middle of the sequence will be around at 0.
+    # Sequences around XZ = 0
+    xzs = np.mean(X[:, :, 0, ::2], axis=1, keepdims=True)
+    X[:, :, 0, 0] = X[:, :, 0, 0] - xzs[..., 0]
+    X[:, :, 0, 2] = X[:, :, 0, 2] - xzs[..., 1]
 
-    # Unify facing on last seed frame (default: 10th frame)
+    # Unify facing on last seed frame
     X, Q = utils.rotate_at_frame(X, Q, anim.parents, n_past=npast)
 
-    return X, Q, anim.parents, contacts_l, contacts_r
+    return X, Q, anim.parents, contacts_l, contacts_r, seq_names
 
 
 def get_train_stats(bvh_folder, train_set):
@@ -255,8 +255,8 @@ def get_train_stats(bvh_folder, train_set):
     :return: Tuple of (local position mean vector, local position standard deviation vector, local joint offsets tensor)
     """
     print("Building the train set...")
-    xtrain, qtrain, parents, _, _ = get_lafan1_set(
-        bvh_folder, train_set, window=50, offset=20
+    xtrain, qtrain, parents, _, _, _ = get_lafan1_set(
+        bvh_folder, train_set, window=50, offset=20, train=True, stats=True
     )
 
     print("Computing stats...\n")
