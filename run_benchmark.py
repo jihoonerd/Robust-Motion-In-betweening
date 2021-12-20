@@ -229,10 +229,10 @@ for i_batch, sampled_batch in enumerate(lafan_data_loader_test):
             contact_pred_list.append(contact_pred)
 
             # For loss
-            pos_next_list.append(global_pos[:, t+1+9])
-            local_q_next_list.append(local_q[:,t+1+9].view(local_q.size(0), -1))
-            root_p_next_list.append(root_p[:,t+1+9])
-            contact_next_list.append(contact[:,t+1+9])
+            pos_next_list.append(global_pos[:, t+1+10])
+            local_q_next_list.append(local_q[:,t+1+10].view(local_q.size(0), -1))
+            root_p_next_list.append(root_p[:,t+1+10])
+            contact_next_list.append(contact[:,t+1+10])
 
 
         root_pred_stack = torch.stack(root_pred_list, dim=1)
