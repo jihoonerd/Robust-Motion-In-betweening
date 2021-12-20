@@ -30,6 +30,8 @@ elif config['data']['dataset'] in ['HumanEva', 'PosePrior']:
     train_actors = ["subject1", "subject2"]
 elif config['data']['dataset'] in ['HUMAN4D']:
     train_actors = ["subject1", "subject2", "subject3", "subject4", "subject5", "subject6", "subject7"]
+elif config['data']['dataset'] == 'MPI_HDM05':
+    train_actors = ["subject1", "subject2", "subject3"]
 else:
     ValueError("Invalid Dataset")
 
