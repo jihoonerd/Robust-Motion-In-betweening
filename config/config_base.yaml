@@ -1,10 +1,11 @@
 data:
-    data_dir: 'AMASS/HumanEva'
+    data_dir: 'ubisoft-laforge-animation-dataset/output/BVH'
     data_loader_workers: 0
-    processed_data_dir: 'processed_data_humaneva_40'
-    flip_bvh: false
-    dataset: 'HumanEva'
-    exp_name: 'HumanEva_40'
+    skeleton_path: 'ubisoft-laforge-animation-dataset/output/BVH/walk1_subject1.bvh'
+    processed_data_dir: 'processed_data'
+    flip_bvh: true
+    dataset: 'LAFAN'
+    exp_name: 'LAFAN'
 
 device:
     gpu_id: 0
@@ -31,10 +32,10 @@ log:
     weight_save_interval: 25
 
 test:
-    data_dir: 'AMASS/HumanEva'
-    saved_weight_path: 'model_weights/HumanEva_80/trained_weight_200'
-    processed_data_dir: 'processed_data_humaneva_80'
-    test_frames: 80
-    test_window: 90
+    data_dir: 'ubisoft-laforge-animation-dataset/output/BVH'
+    saved_weight_path: ''
+    processed_data_dir: 'processed_data'
+    test_frames: 40
+    test_window: 50
     plot: false
     inference_batch_index: 25
