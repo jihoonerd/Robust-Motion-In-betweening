@@ -55,10 +55,6 @@ It implements a paper [*"Robust Motion In-betweening"*](https://arxiv.org/abs/21
 
 You can simply run `train.py` and `test.py` for training and inference. In case of modifying training parameters, strongly recommend to change it from `config/config.yaml`.
 
-## Trained Weights
-
-You can download compatible trained weights at [here](https://drive.google.com/file/d/1m1wxKL3NIZB3hCBchMszYvw-7WhFLQLT/view?usp=sharing). Be sure to give correct path through `saved_weight_path` at `config.yaml`
-
 ## Configuration
 If you want to change configuration of processes, modify `config_base.yaml` in `/config`.
 
