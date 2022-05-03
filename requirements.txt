@@ -21,7 +21,7 @@ imageio==2.9.0
 importlib-metadata==4.8.2
 iniconfig==1.1.1
 iopath==0.1.6
-ipython==7.23.0
+ipython==7.31.1
 ipython-genutils==0.2.0
 jedi==0.18.0
 joblib==1.0.1
